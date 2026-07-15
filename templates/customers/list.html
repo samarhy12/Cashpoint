@@ -1,0 +1,114 @@
+{% extends "base.html" %} {% block title %}Customers — Cash Point Finance{%
+endblock %} {% block page_title %}Customers{% endblock %} {% block page_sub %}
+<div class="text-xs text-ink-400 mt-0.5">
+  {{ pagination.total }} registered customer{{ 's' if pagination.total != 1 }}
+</div>
+{% endblock %} {% block content %}
+<div
+  class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4"
+>
+  <form method="GET" class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+    <input
+      type="text"
+      name="q"
+      value="{{ q }}"
+      placeholder="Search name, phone, ID or customer code"
+    />
+  </form>
+  <div class="flex flex-wrap gap-2">
+    <button onclick="window.print()" class="btn btn-outline btn-sm">
+      Print
+    </button>
+    <a
+      href="{{ url_for('customers.new_customer') }}"
+      class="btn btn-gold sm:flex-shrink-0"
+      >+ Register customer</a
+    >
+  </div>
+</div>
+
+<div class="card w-full">
+  {% if customers %}
+  <div class="overflow-x-auto">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Code</th>
+          <th>Phone</th>
+          <th>Occupation</th>
+          <th>Active loans</th>
+          <th>Registered</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td class="num text-ink-400">{{ c.registration_number }}</td>
+          <td>
+            <a
+              class="row-link"
+              href="{{ url_for('customers.view_customer', customer_id=c.id) }}"
+              >{{ c.full_name }}</a
+            >
+            <div class="text-ink-400 text-[11.5px]">
+              {{ c.gender }} &middot; {{ c.age }} yrs
+            </div>
+          </td>
+          <td>{{ c.customer_code }}</td>
+          <td>{{ c.phone_number }}</td>
+          <td>{{ c.occupation }}</td>
+          <td>{{ c.active_loans|length }}</td>
+          <td>{{ c.created_at.strftime("%d %b %Y") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+    >
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M2.5 20c0-3.6 2.9-6.2 6.5-6.2s6.5 2.6 6.5 6.2" />
+    </svg>
+    <h4>No customers found</h4>
+    <p>
+      {% if q %}No results for "{{ q }}". Try a different search.{% else
+      %}Register your first customer to get started.{% endif %}
+    </p>
+  </div>
+  {% endif %}
+</div>
+{% if pagination.pages > 1 %}
+<div class="mt-5 flex flex-wrap items-center justify-center gap-2">
+  {% if pagination.has_prev %}
+  <a
+    href="{{ url_for('customers.list_customers', page=pagination.prev_num, **query_params) }}"
+    class="btn btn-outline btn-sm"
+    >← Prev</a
+  >
+  {% endif %} {% for page_num in range(1, pagination.pages + 1) %}
+  <a
+    href="{{ url_for('customers.list_customers', page=page_num, **query_params) }}"
+    class="btn btn-sm {{ 'btn-primary' if page_num == pagination.page else 'btn-outline' }}"
+    >{{ page_num }}</a
+  >
+  {% endfor %} {% if pagination.has_next %}
+  <a
+    href="{{ url_for('customers.list_customers', page=pagination.next_num, **query_params) }}"
+    class="btn btn-outline btn-sm"
+    >Next →</a
+  >
+  {% endif %}
+</div>
+{% endif %} {% endblock %}

@@ -1,0 +1,15 @@
+{
+  "name": "Cash Point Finance",
+  "short_name": "Cash Point",
+  "description": "Cash Point Finance staff portal — customers, loans and repayments.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7F5EF",
+  "theme_color": "#0B1E3D",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
