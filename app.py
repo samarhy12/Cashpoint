@@ -128,7 +128,6 @@ def _ensure_default_admin():
 
 
 app = create_app()
-application = app  # for WSGI servers like Gunicorn, uWSGI, etc.
 
 if __name__ == "__main__":
     app.run()
