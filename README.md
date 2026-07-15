@@ -143,4 +143,5 @@ MONTHLY_INTEREST_RATE = 0.10   # 10% per month — shown as the default option, 
 Loan duration is no longer fixed — it's entered per loan (days for daily terms, weeks for weekly, months for monthly). The schedule math itself lives in `Loan.compute_schedule` in `models.py` if you ever need to change how weekly/daily durations convert to month-equivalents for interest (currently 4 weeks ≈ 1 month, 30 days ≈ 1 month).
 #   C a s h p o i n t  
  #   C a s h p o i n t  
+ #   C a s h p o i n t  
  
