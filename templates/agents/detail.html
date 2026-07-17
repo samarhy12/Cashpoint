@@ -23,7 +23,12 @@
     <a href="{{ url_for('agents.agent_detail', agent_id=agent.id, view='all') }}"
        class="btn btn-sm {{ 'btn-primary' if view == 'all' else 'btn-outline' }}">All time</a>
   </form>
-  <button onclick="window.print()" class="btn btn-primary btn-sm">Print / Save as PDF</button>
+  <div class="flex gap-2">
+    {% if current_user.can_record_repayments %}
+    <a href="{{ url_for('agents.record_agent_payment', agent_id=agent.id) }}" class="btn btn-gold btn-sm">+ Record Payment</a>
+    {% endif %}
+    <button onclick="window.print()" class="btn btn-primary btn-sm">Print / Save as PDF</button>
+  </div>
 </div>
 
 <div class="card card-pad w-full mb-5">

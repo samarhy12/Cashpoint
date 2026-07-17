@@ -32,3 +32,5 @@ Thumbs.db
 
 # Migrations (optional if you don't want to track them)
 migrations/
+
+seed.py

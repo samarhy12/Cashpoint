@@ -43,11 +43,20 @@ endblock %} {% block page_title %}Agents{% endblock %} {% block page_sub %}
             GHS {{ "{:,.2f}".format(agent_today_totals.get(a.id, 0)) }}
           </td>
           <td>
-            <a
-              href="{{ url_for('agents.agent_detail', agent_id=a.id) }}"
-              class="btn btn-outline btn-sm"
-              >View</a
-            >
+            <div class="flex gap-2">
+              {% if current_user.can_record_repayments %}
+              <a
+                href="{{ url_for('agents.record_agent_payment', agent_id=a.id) }}"
+                class="btn btn-gold btn-sm"
+                >Record Payment</a
+              >
+              {% endif %}
+              <a
+                href="{{ url_for('agents.agent_detail', agent_id=a.id) }}"
+                class="btn btn-outline btn-sm"
+                >View</a
+              >
+            </div>
           </td>
         </tr>
         {% endfor %}
