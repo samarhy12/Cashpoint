@@ -35,6 +35,7 @@ def create_app(config_class=Config):
     from routes.expenses import bp as expenses_bp
     from routes.agents import bp as agents_bp
     from routes.business import bp as business_bp
+    from routes.notifications import bp as notifications_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -44,6 +45,7 @@ def create_app(config_class=Config):
     app.register_blueprint(expenses_bp)
     app.register_blueprint(agents_bp)
     app.register_blueprint(business_bp)
+    app.register_blueprint(notifications_bp)
 
     # -----------------------------------------------------------------
     # Access control
@@ -83,14 +85,22 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_globals():
-        from models import current_cash_in_hand
+        from models import current_cash_in_hand, Notification
         cash = None
+        unread_count = 0
         if current_user.is_authenticated:
             try:
                 cash = current_cash_in_hand()
+                unread_count = Notification.query.filter(
+                    (Notification.recipient_id == current_user.id) |
+                    (Notification.recipient_role == current_user.role) |
+                    (Notification.recipient_role == "all"),
+                    Notification.is_read == False
+                ).count()
             except Exception:
                 cash = None
-        return {"current_year": date.today().year, "app_name": "Cash Point Finance", "global_cash_in_hand": cash}
+                unread_count = 0
+        return {"current_year": date.today().year, "app_name": "Cash Point Finance", "global_cash_in_hand": cash, "unread_notification_count": unread_count}
 
     @app.errorhandler(400)
     def bad_request(e):

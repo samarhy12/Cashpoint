@@ -1,5 +1,5 @@
 import enum
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
@@ -207,6 +207,7 @@ class Guarantor(db.Model):
     occupation = db.Column(db.String(100), nullable=False)
     employment_status = db.Column(db.String(50), nullable=False)
     business_type = db.Column(db.String(120), nullable=True)
+    relationship_to_customer = db.Column(db.String(50), nullable=True)
 
     photo_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.now())
@@ -305,6 +306,82 @@ class Loan(db.Model):
         pct = (self.amount_paid / self.total_repayable) * 100
         return max(0, min(100, round(pct, 1)))
 
+    def get_next_due_date(self):
+        """Calculate the next installment due date based on term type and payment history."""
+        if self.status != "active":
+            return None
+        
+        # Get the most recent payment date, or use start date if no payments
+        # Use SQL to avoid circular dependency with Repayment model
+        try:
+            last_payment = db.session.execute(
+                db.text("SELECT date FROM repayments WHERE loan_id = :loan_id ORDER BY date DESC LIMIT 1"),
+                {"loan_id": self.id}
+            ).fetchone()
+            has_last_payment = last_payment is not None
+            # Convert string to date object if needed
+            if last_payment and last_payment[0]:
+                if isinstance(last_payment[0], str):
+                    last_payment_date = datetime.strptime(last_payment[0], "%Y-%m-%d").date()
+                else:
+                    last_payment_date = last_payment[0]
+            else:
+                last_payment_date = None
+        except:
+            has_last_payment = False
+            last_payment_date = None
+        
+        # Calculate the next due date based on term type
+        if self.term_type == TermType.MONTHLY.value:
+            # First payment due 1 month after disbursement, then monthly thereafter
+            if has_last_payment and last_payment_date:
+                return add_months(last_payment_date, 1)
+            else:
+                return add_months(self.start_date, 1)
+        elif self.term_type == TermType.WEEKLY.value:
+            # First payment due 1 week after disbursement, then weekly thereafter
+            base_date = last_payment_date if (has_last_payment and last_payment_date) else self.start_date
+            return base_date + timedelta(weeks=1)
+        else:  # daily
+            # First payment due 1 week after disbursement, then business days thereafter
+            if has_last_payment and last_payment_date:
+                return add_weekdays(last_payment_date, 1)
+            else:
+                return self.start_date + timedelta(weeks=1)
+
+    @property
+    def next_due_date(self):
+        """Get the next installment due date."""
+        return self.get_next_due_date()
+
+    @property
+    def days_until_due(self):
+        """Days until next payment is due (negative if overdue)."""
+        next_due = self.next_due_date
+        if not next_due:
+            return None
+        return (next_due - date.today()).days
+
+    @property
+    def is_payment_due_today(self):
+        """Check if a payment is due today."""
+        next_due = self.next_due_date
+        return next_due == date.today() if next_due else False
+
+    @property
+    def is_payment_overdue(self):
+        """Check if a payment is overdue (past due date and still active)."""
+        if self.status != "active":
+            return False
+        days_until = self.days_until_due
+        return days_until is not None and days_until < 0
+
+    @property
+    def overdue_days(self):
+        """Number of days the payment is overdue."""
+        days_until = self.days_until_due
+        return abs(days_until) if days_until is not None and days_until < 0 else 0
+
     def refresh_status(self):
         if self.outstanding_balance <= 0:
             self.status = "completed"
@@ -329,10 +406,16 @@ class Loan(db.Model):
         to a month-equivalent using the standard microfinance approximation of 4 weeks
         per month. Daily durations accrue interest on weekdays only, so the month-
         equivalent is the business-day count divided by 20 (5 weekdays/week x 4 weeks/month).
+        
+        Payment schedule:
+        - Monthly loans: First payment 1 month after disbursement, then monthly
+        - Weekly loans: First payment 1 week after disbursement, then weekly
+        - Daily loans: First payment 1 week after disbursement, then business days
         """
         duration_value = max(1, int(duration_value))
 
         if term_type == TermType.MONTHLY.value:
+            # First payment 1 month after disbursement, then monthly
             end_date = add_months(start_date, duration_value)
             effective_months = duration_value
             num_installments = duration_value
@@ -341,7 +424,9 @@ class Loan(db.Model):
             effective_months = duration_value / 4.0
             num_installments = duration_value
         else:  # daily -> weekdays only (Mon-Fri), weekends excluded
-            end_date = add_weekdays(start_date, duration_value - 1)
+            # Start payments 1 week after disbursement, then count business days
+            first_payment_date = start_date + timedelta(weeks=1)
+            end_date = add_weekdays(first_payment_date, duration_value - 1)
             num_installments = max(1, duration_value)
             effective_months = num_installments / 20.0
 
@@ -489,6 +574,32 @@ class Expense(db.Model):
 def current_cash_in_hand():
     total = db.session.query(db.func.coalesce(db.func.sum(CashTransaction.amount), 0.0)).scalar()
     return round(float(total or 0.0), 2)
+
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+class Notification(db.Model):
+    __tablename__ = "notifications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    notification_type = db.Column(db.String(50), nullable=False, default="due_loans")  # due_loans, overdue, system
+    recipient_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
+    recipient_role = db.Column(db.String(50), nullable=True)  # admin, office_staff, agent, or specific user
+    
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    read_at = db.Column(db.DateTime, nullable=True)
+
+    # For due loans notifications, store the relevant data
+    loan_data = db.Column(db.JSON, nullable=True)  # Store loan IDs, counts, etc.
+
+    recipient = db.relationship("Staff", foreign_keys=[recipient_id])
+
+    def __repr__(self):
+        return f"<Notification {self.title}>"
 
 
 # ---------------------------------------------------------------------------

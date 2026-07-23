@@ -207,6 +207,15 @@
               <label for="guarantor_business_type">Type of business <span class="hint">(if self-employed / trading)</span></label>
               <input type="text" id="guarantor_business_type" name="guarantor_business_type" value="{{ form.get('guarantor_business_type','') }}">
             </div>
+            <div class="field">
+              <label for="guarantor_relationship_to_customer">Relationship to customer</label>
+              <select id="guarantor_relationship_to_customer" name="guarantor_relationship_to_customer" required>
+                <option value="" disabled selected>Select relationship</option>
+                {% for r in relationships %}
+                <option value="{{ r }}" {{ 'selected' if form.get('guarantor_relationship_to_customer') == r }}>{{ r }}</option>
+                {% endfor %}
+              </select>
+            </div>
           </div>
         </template>
       </div>

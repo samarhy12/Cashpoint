@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 
 from extensions import db
 from models import (
-    Customer, Loan, Repayment, CashTransaction, Guarantor, Staff,
+    Customer, Loan, Repayment, CashTransaction, Guarantor, Staff, Notification,
     subtract_years, is_business_day_open, generate_transaction_id,
 )
 from image_utils import validate_and_save_image
@@ -89,6 +89,141 @@ def list_loans():
     )
 
 
+@bp.route("/due")
+@login_required
+def due_loans():
+    """Show loans with payments due today and overdue payments."""
+    today = date.today()
+    
+    # Get all active loans
+    active_loans = Loan.query.filter_by(status="active").all()
+    
+    # Categorize loans
+    due_today = []
+    overdue = []
+    
+    for loan in active_loans:
+        if loan.is_payment_due_today:
+            due_today.append(loan)
+        elif loan.is_payment_overdue:
+            overdue.append(loan)
+    
+    # Sort by due date and then by amount overdue
+    due_today.sort(key=lambda l: (l.next_due_date, l.outstanding_balance))
+    overdue.sort(key=lambda l: (l.overdue_days, l.outstanding_balance), reverse=True)
+    
+    return render_template(
+        "loans/due.html",
+        due_today=due_today,
+        overdue=overdue,
+        today=today,
+    )
+
+
+@bp.route("/due/notify", methods=["POST"])
+@login_required
+def send_due_notification():
+    """Send notification about due loans to admins and agents."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    today = date.today()
+    
+    # Get all active loans
+    active_loans = Loan.query.filter_by(status="active").all()
+    
+    # Categorize loans
+    due_today = []
+    overdue = []
+    
+    for loan in active_loans:
+        if loan.is_payment_due_today:
+            due_today.append(loan)
+        elif loan.is_payment_overdue:
+            overdue.append(loan)
+    
+    if not due_today and not overdue:
+        flash("No due or overdue loans to notify about.", "error")
+        return redirect(url_for("loans.due_loans"))
+    
+    # Create notification content
+    due_count = len(due_today)
+    overdue_count = len(overdue)
+    total_due_amount = sum(l.installment_amount for l in due_today)
+    total_overdue_amount = sum(l.installment_amount for l in overdue)
+    
+    title = f"Loan Payment Collection Alert - {today.strftime('%d %b %Y')}"
+    message = f"""
+Payment Collection Report for {today.strftime('%d %b %Y')}
+
+DUE TODAY ({due_count} loans):
+• Total amount due: GHS {total_due_amount:,.2f}
+• Customers with payments due today
+
+OVERDUE ({overdue_count} loans):
+• Total overdue amount: GHS {total_overdue_amount:,.2f}
+• Customers with overdue payments
+
+Please follow up with customers for payment collection.
+"""
+    
+    # Store loan data in loan_data field
+    notification_data = {
+        "due_today": [
+            {
+                "loan_id": l.id,
+                "loan_code": l.loan_code,
+                "customer_name": l.customer.full_name,
+                "customer_phone": l.customer.phone_number,
+                "amount": l.installment_amount,
+                "due_date": l.next_due_date.isoformat() if l.next_due_date else None
+            } for l in due_today
+        ],
+        "overdue": [
+            {
+                "loan_id": l.id,
+                "loan_code": l.loan_code,
+                "customer_name": l.customer.full_name,
+                "customer_phone": l.customer.phone_number,
+                "amount": l.installment_amount,
+                "days_overdue": l.overdue_days,
+                "due_date": l.next_due_date.isoformat() if l.next_due_date else None
+            } for l in overdue
+        ],
+        "summary": {
+            "due_count": due_count,
+            "overdue_count": overdue_count,
+            "total_due_amount": total_due_amount,
+            "total_overdue_amount": total_overdue_amount,
+            "date": today.isoformat()
+        }
+    }
+    
+    # Send notifications to all admins and office staff
+    recipients = Staff.query.filter(
+        Staff.role.in_(["admin", "office_staff"]),
+        Staff.is_active_staff == True
+    ).all()
+    
+    notifications_sent = 0
+    for recipient in recipients:
+        notification = Notification(
+            title=title,
+            message=message,
+            notification_type="due_loans",
+            recipient_id=recipient.id,
+            recipient_role=None,  # Specific recipient
+            loan_data=notification_data
+        )
+        db.session.add(notification)
+        notifications_sent += 1
+    
+    db.session.commit()
+    
+    flash(f"Notification sent to {notifications_sent} staff members about {due_count} due and {overdue_count} overdue loans.", "success")
+    return redirect(url_for("loans.due_loans"))
+
+
 @bp.route("/new", methods=["GET", "POST"])
 @login_required
 @can_disburse_required
@@ -98,6 +233,7 @@ def new_loan():
     id_types = ["Ghana Card", "Voter's ID", "Driver's License", "Passport", "NHIS Card"]
     employment_statuses = ["Employed", "Self-employed", "Unemployed", "Student", "Retired"]
     genders = ["Male", "Female"]
+    relationships = ["Spouse", "Parent", "Sibling", "Child", "Friend", "Colleague", "Relative", "Other"]
     standard_rate_pct = current_app.config["MONTHLY_INTEREST_RATE"] * 100
 
     if request.method == "POST":
@@ -174,10 +310,14 @@ def new_loan():
             g_occupation = form.get("guarantor_occupation", "").strip()
             g_employment = form.get("guarantor_employment_status", "")
             g_business = form.get("guarantor_business_type", "").strip() or None
+            g_relationship = form.get("guarantor_relationship_to_customer", "").strip()
 
             required_g = [g_name, g_gender, g_dob_raw, g_id_type, g_id_number, g_phone, g_address, g_occupation, g_employment]
             if not all(required_g):
                 errors.append("Please complete all required guarantor details.")
+            
+            if not g_relationship:
+                errors.append("Please specify the guarantor's relationship to the customer.")
 
             g_dob = None
             if g_dob_raw:
@@ -192,6 +332,7 @@ def new_loan():
                 full_name=g_name, gender=g_gender, date_of_birth=g_dob, id_type=g_id_type,
                 id_number=g_id_number, phone_number=g_phone, residential_address=g_address,
                 occupation=g_occupation, employment_status=g_employment, business_type=g_business,
+                relationship_to_customer=g_relationship,
             )
 
             g_photo = request.files.get("guarantor_photo")
@@ -206,6 +347,7 @@ def new_loan():
             return render_template("loans/form.html", customers=customers, form=form,
                                     selected_customer_id=cid, today=date.today().isoformat(),
                                     id_types=id_types, employment_statuses=employment_statuses, genders=genders,
+                                    relationships=relationships,
                                     max_dob=max_allowed_dob().isoformat(), standard_rate_pct=standard_rate_pct)
 
         end_date, total_interest, total_repayable, installment, num_installments = Loan.compute_schedule(
@@ -262,6 +404,7 @@ def new_loan():
     return render_template("loans/form.html", customers=customers, form={},
                             selected_customer_id=customer_id, today=date.today().isoformat(),
                             id_types=id_types, employment_statuses=employment_statuses, genders=genders,
+                            relationships=relationships,
                             max_dob=max_allowed_dob().isoformat(), standard_rate_pct=standard_rate_pct)
 
 
