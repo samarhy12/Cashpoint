@@ -146,6 +146,7 @@ def add_capital():
     amount_raw = request.form.get("amount", "").strip()
     description = request.form.get("description", "").strip() or "Capital injection"
     password = request.form.get("password", "")
+    tx_date_raw = request.form.get("tx_date", "").strip()
 
     if not password or not current_user.check_password(password):
         flash("Incorrect password. Cash ledger adjustments must be confirmed with your admin password.", "error")
@@ -159,12 +160,22 @@ def add_capital():
         flash("Enter a valid, non-zero amount.", "error")
         return redirect(url_for("staff.transactions"))
 
+    # Handle date input - use provided date or today's date
+    tx_date = date.today()
+    if tx_date_raw:
+        try:
+            from datetime import datetime
+            tx_date = datetime.strptime(tx_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Invalid date format. Using today's date.", "error")
+            tx_date = date.today()
+
     tx = CashTransaction(
         tx_type="capital_in" if amount > 0 else "adjustment",
         amount=amount,
         description=description,
         staff_id=current_user.id,
-        date=date.today(),
+        date=tx_date,
     )
     db.session.add(tx)
     db.session.commit()

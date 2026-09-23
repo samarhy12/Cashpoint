@@ -150,6 +150,16 @@ endblock %} {% block page_title %}Cash Ledger{% endblock %} {% block page_sub %}
           />
         </div>
         <div class="field mb-4">
+          <label for="tx_date">Transaction date</label>
+          <input
+            type="date"
+            id="tx_date"
+            name="tx_date"
+            value="{{ date.today().strftime('%Y-%m-%d') }}"
+          />
+          <span class="hint">Leave as today for current transactions, or change to backdate old entries.</span>
+        </div>
+        <div class="field mb-4">
           <label for="password">Your password</label>
           <input
             type="password"
