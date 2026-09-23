@@ -1,7 +1,9 @@
 {% extends "base.html" %} {% block title %}Dashboard — Cash Point Finance{%
 endblock %} {% block page_title %}Dashboard{% endblock %} {% block page_sub %}
-<div class="text-xs text-ink-400 mt-0.5">
-  {{ current_year }} overview of customers, loans and cash position
+<div class="flex items-center gap-3 text-xs text-ink-400 mt-0.5">
+  <span>Overview of customers, loans and cash position</span>
+  <span class="text-ink-300">|</span>
+  <span id="live-datetime" class="font-mono text-gold-600 font-semibold"></span>
 </div>
 {% endblock %} {% block content %} {% if current_user.is_admin %}
 <div
@@ -232,4 +234,29 @@ endblock %} {% block page_title %}Dashboard{% endblock %} {% block page_sub %}
   {% endif %}
 </div>
 
+{% endblock %} {% block extra_scripts %}
+<script>
+  function updateDateTime() {
+    const now = new Date();
+    const dateOptions = {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    };
+    const timeOptions = {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    };
+    const dateStr = now.toLocaleDateString('en-US', dateOptions);
+    const timeStr = now.toLocaleTimeString('en-US', timeOptions);
+    document.getElementById('live-datetime').textContent = `${dateStr} • ${timeStr}`;
+  }
+  
+  // Update immediately and then every second
+  updateDateTime();
+  setInterval(updateDateTime, 1000);
+</script>
 {% endblock %}

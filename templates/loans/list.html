@@ -18,6 +18,12 @@
     {% endfor %}
   </div>
   <div class="flex flex-wrap gap-2">
+    <a href="{{ url_for('loans.list_disbursements') }}" class="btn btn-outline btn-sm">
+      Disbursement History
+    </a>
+    <a href="{{ url_for('loans.list_repayments') }}" class="btn btn-outline btn-sm">
+      Payment History
+    </a>
     <button onclick="window.print()" class="btn btn-outline btn-sm">
       Print
     </button>

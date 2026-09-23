@@ -522,7 +522,7 @@ class CashTransaction(db.Model):
     __tablename__ = "cash_transactions"
 
     id = db.Column(db.Integer, primary_key=True)
-    tx_type = db.Column(db.String(30), nullable=False)  # capital_in | disbursement | repayment | expense | adjustment
+    tx_type = db.Column(db.String(30), nullable=False)  # capital_in | disbursement | repayment | expense | adjustment | reversal
     amount = db.Column(db.Float, nullable=False)         # signed: +in, -out
     description = db.Column(db.String(255), nullable=True)
 
@@ -531,12 +531,37 @@ class CashTransaction(db.Model):
     expense_id = db.Column(db.Integer, db.ForeignKey("expenses.id"), nullable=True)
     staff_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
 
+    # Reversal tracking
+    reversed_by_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
+    reversed_at = db.Column(db.DateTime, nullable=True)
+    reversal_reason = db.Column(db.String(255), nullable=True)
+    original_tx_id = db.Column(db.Integer, db.ForeignKey("cash_transactions.id"), nullable=True)
+
     date = db.Column(db.Date, nullable=False, default=date.today)
     created_at = db.Column(db.DateTime, default=db.func.now())
 
     loan = db.relationship("Loan")
     customer = db.relationship("Customer")
-    staff = db.relationship("Staff")
+    staff = db.relationship("Staff", foreign_keys=[staff_id])
+    reversed_by = db.relationship("Staff", foreign_keys=[reversed_by_id])
+    original_transaction = db.relationship("CashTransaction", remote_side=[id], foreign_keys=[original_tx_id])
+
+    @property
+    def is_reversed(self):
+        return self.reversed_at is not None
+
+    @property
+    def is_reversal(self):
+        return self.tx_type == "reversal"
+
+    @property
+    def can_be_reversed(self):
+        """Only non-reversed, non-reversal transactions can be reversed"""
+        if self.is_reversed or self.is_reversal:
+            return False
+        # Allow reversal within 24 hours of creation
+        from datetime import datetime, timedelta
+        return datetime.now() - self.created_at < timedelta(hours=24)
 
     def __repr__(self):
         return f"<CashTx {self.tx_type} {self.amount}>"

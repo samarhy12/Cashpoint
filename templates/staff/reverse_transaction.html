@@ -1,0 +1,101 @@
+{% extends "base.html" %} {% block title %}Reverse Transaction — Cash Point Finance{%
+endblock %} {% block page_title %}Reverse Transaction{% endblock %} {% block page_sub %}
+<div class="text-xs text-ink-400 mt-0.5">
+  Admin only - This action requires caution
+</div>
+{% endblock %} {% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="card card-pad mb-6 border-l-4 border-red-500">
+    <div class="flex items-start gap-3">
+      <div class="text-red-500 flex-shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-red-600 font-semibold mb-1">Warning: This action cannot be undone</h3>
+        <p class="text-sm text-ink-700">
+          Reversing a transaction will create a new entry that negates the original amount. 
+          This affects your cash ledger and financial records. Use this only for genuine errors.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-pad mb-6">
+    <h3 class="mb-4">Transaction Details</h3>
+    <div class="space-y-3">
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Transaction ID:</span>
+        <span class="font-mono text-sm">{{ tx.id }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Type:</span>
+        <span class="text-sm">{{ tx.tx_type.replace('_',' ')|capitalize }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Amount:</span>
+        <span class="font-mono text-sm {{ 'text-green-600' if tx.amount > 0 else 'text-red-600' }}">
+          {{ '+' if tx.amount > 0 else '' }}GHS {{ "{:,.2f}".format(tx.amount) }}
+        </span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Date:</span>
+        <span class="text-sm">{{ tx.date.strftime("%d %b %Y") }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Description:</span>
+        <span class="text-sm">{{ tx.description or '—' }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Recorded by:</span>
+        <span class="text-sm">{{ tx.staff.full_name if tx.staff else '—' }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ink-400 text-sm">Created:</span>
+        <span class="text-sm">{{ tx.created_at.strftime("%d %b %Y at %I:%M %p") }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-pad">
+    <h3 class="mb-4">Confirm Reversal</h3>
+    <form method="POST" action="{{ url_for('staff.reverse_transaction', tx_id=tx.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      
+      <div class="field mb-4">
+        <label for="reason">Reason for reversal *</label>
+        <textarea
+          id="reason"
+          name="reason"
+          rows="3"
+          required
+          placeholder="Explain why this transaction needs to be reversed (e.g., 'Wrong amount entered', 'Duplicate entry')"
+        ></textarea>
+        <span class="hint">This will be recorded in the audit trail.</span>
+      </div>
+
+      <div class="field mb-4">
+        <label for="password">Your admin password *</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        />
+        <span class="hint">Required to confirm this reversal.</span>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="btn btn-danger">
+          Reverse Transaction
+        </button>
+        <a href="{{ url_for('staff.transactions') }}" class="btn btn-outline">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

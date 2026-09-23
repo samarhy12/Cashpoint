@@ -1,0 +1,84 @@
+{% extends "base.html" %} {% block title %}Capital Injection History — Cash Point Finance{%
+endblock %} {% block page_title %}Capital Injection History{% endblock %} {% block page_sub %}
+<div class="text-xs text-ink-400 mt-0.5">
+  All capital injections and adjustments on record
+</div>
+{% endblock %} {% block content %}
+<div class="card w-full min-w-0">
+  {% if transactions %}
+  <div class="tx-list">
+    {% for tx in transactions %}
+    <div class="tx-row">
+      <div class="tx-icon {{ 'in' if tx.amount > 0 else 'out' }}">
+        {% if tx.tx_type == 'capital_in' %}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 3v12M7 10l5 5 5-5" />
+          <path d="M4 19h16" />
+        </svg>
+        {% else %}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M4 12h16M4 6h16M4 18h16" />
+        </svg>
+        {% endif %}
+      </div>
+      <div class="tx-body">
+        <div class="tx-title">
+          {{ tx.description or tx.tx_type.replace('_',' ')|capitalize }}
+        </div>
+        <div class="tx-sub">
+          <span class="text-ink-500">ID:</span> {{ tx.id }} &middot; 
+          <span class="text-ink-500">Date:</span> {{ tx.date.strftime("%d %b %Y") }} &middot;
+          <span class="text-ink-500">Type:</span> {{ tx.tx_type.replace('_',' ')|capitalize }} &middot;
+          recorded by {{ tx.staff.full_name if tx.staff else "—" }}
+        </div>
+      </div>
+      <div class="tx-amount {{ 'in' if tx.amount > 0 else 'out' }}">
+        {{ '+' if tx.amount > 0 else '' }}{{ "{:,.2f}".format(tx.amount) }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><h4>No capital injections or adjustments yet</h4></div>
+  {% endif %}
+</div>
+
+<div class="mt-4">
+  <a href="{{ url_for('staff.transactions') }}" class="btn btn-outline">
+    ← Back to cash ledger
+  </a>
+</div>
+
+{% if pagination.pages > 1 %}
+<div class="mt-5 flex flex-wrap items-center justify-center gap-2">
+  {% if pagination.has_prev %}
+  <a
+    href="{{ url_for('staff.capital_history', page=pagination.prev_num) }}"
+    class="btn btn-outline btn-sm"
+    >← Prev</a
+  >
+  {% endif %} {% for page_num in range(1, pagination.pages + 1) %}
+  <a
+    href="{{ url_for('staff.capital_history', page=page_num) }}"
+    class="btn btn-sm {{ 'btn-primary' if page_num == pagination.page else 'btn-outline' }}"
+    >{{ page_num }}</a
+  >
+  {% endfor %} {% if pagination.has_next %}
+  <a
+    href="{{ url_for('staff.capital_history', page=pagination.next_num) }}"
+    class="btn btn-outline btn-sm"
+    >Next →</a
+  >
+  {% endif %}
+</div>
+{% endif %} {% endblock %}
