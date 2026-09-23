@@ -136,6 +136,7 @@ def transactions():
         cash_in_hand=current_cash_in_hand(),
         pagination=pagination,
         query_params={},
+        today=date.today(),
     )
 
 

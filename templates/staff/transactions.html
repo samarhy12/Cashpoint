@@ -155,7 +155,7 @@ endblock %} {% block page_title %}Cash Ledger{% endblock %} {% block page_sub %}
             type="date"
             id="tx_date"
             name="tx_date"
-            value="{{ date.today().strftime('%Y-%m-%d') }}"
+            value="{{ today.strftime('%Y-%m-%d') }}"
           />
           <span class="hint">Leave as today for current transactions, or change to backdate old entries.</span>
         </div>
