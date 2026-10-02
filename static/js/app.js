@@ -6,6 +6,50 @@ if ("serviceWorker" in navigator) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // ---- Cash toggle functionality ----
+  // Global state for cash visibility
+  let showCash = false;
+
+  // Toggle cash visibility
+  function toggleCash() {
+    showCash = !showCash;
+    updateCashDisplays();
+  }
+
+  // Update all cash displays on the page
+  function updateCashDisplays() {
+    // Update dashboard cash display
+    const dashboardCash = document.getElementById('dashboard-cash-amount');
+    if (dashboardCash) {
+      const cashAmount = dashboardCash.dataset.cashAmount;
+      dashboardCash.textContent = showCash ? cashAmount : '••••••••';
+      dashboardCash.style.filter = showCash ? 'none' : 'blur(4px)';
+    }
+
+    // Update header cash display
+    const headerCash = document.getElementById('header-cash-amount');
+    if (headerCash) {
+      const cashAmount = headerCash.dataset.cashAmount;
+      headerCash.textContent = showCash ? cashAmount : '••••••••';
+      headerCash.style.filter = showCash ? 'none' : 'blur(4px)';
+    }
+
+    // Update button text
+    const toggleButton = document.getElementById('cash-toggle-btn');
+    if (toggleButton) {
+      toggleButton.textContent = showCash ? 'Hide' : 'Show';
+    }
+  }
+
+  // Initialize toggle button
+  const toggleButton = document.getElementById('cash-toggle-btn');
+  if (toggleButton) {
+    toggleButton.addEventListener('click', toggleCash);
+  }
+
+  // Initialize displays on page load
+  updateCashDisplays();
+
   // ---- Prevent double-submission on every form (critical for financial actions) ----
   document.querySelectorAll("form").forEach((form) => {
     form.addEventListener("submit", (event) => {

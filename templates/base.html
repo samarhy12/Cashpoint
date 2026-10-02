@@ -383,9 +383,11 @@
                 >Cash in hand</span
               >
               <span
+                id="header-cash-amount"
+                data-cash-amount="GHS {{ "{:,.2f}".format(global_cash_in_hand) }}"
                 class="font-mono font-semibold text-gold-400 whitespace-nowrap"
-                >GHS {{ "{:,.2f}".format(global_cash_in_hand) }}</span
-              >
+                style="filter: blur(4px);"
+              >••••••••</span>
             </div>
             {% endif %}
             

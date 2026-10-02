@@ -26,7 +26,10 @@ endblock %} {% block page_title %}Dashboard{% endblock %} {% block page_sub %}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
   <div class="stat-card">
     <div class="stat-label">Cash in hand</div>
-    <div class="stat-value">GHS {{ "{:,.2f}".format(cash_in_hand) }}</div>
+    <div class="stat-value flex items-center gap-2">
+      <span id="dashboard-cash-amount" data-cash-amount="GHS {{ "{:,.2f}".format(cash_in_hand) }}" style="filter: blur(4px);">••••••••</span>
+      <button id="cash-toggle-btn" class="text-xs font-medium text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors">Show</button>
+    </div>
     <div class="stat-foot">Collected &minus; disbursed + capital</div>
   </div>
   <div class="stat-card">
